@@ -1,20 +1,26 @@
 package kinetic
 
-// iterOption configures concurrent iteration behavior.
-type iterOption struct {
-	concurrency int
-}
-
 // IterOption configures concurrent iteration.
+// Passed as variadic arguments to Map, ForEach, and Filter.
 type IterOption interface {
 	applyIter(*iterOption)
+}
+
+type iterOption struct {
+	concurrency int
 }
 
 type iterOptionFunc func(*iterOption)
 
 func (f iterOptionFunc) applyIter(o *iterOption) { f(o) }
 
-// WithConcurrency sets the maximum number of concurrent workers for iteration.
+// WithConcurrency sets the maximum number of concurrent workers for iteration functions.
+// Default concurrency equals the number of items (unlimited parallelism).
+//
+// Example:
+//
+//	results, err := kinetic.Map(items, fn, kinetic.WithConcurrency(10))
+//	// at most 10 goroutines process items concurrently
 func WithConcurrency(n int) IterOption {
 	return iterOptionFunc(func(o *iterOption) { o.concurrency = n })
 }

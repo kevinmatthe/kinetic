@@ -5,6 +5,20 @@ import (
 )
 
 // Stream processes items concurrently while preserving input order in the output.
+// Submit items with Go, then call Wait to get ordered results.
+//
+// Example:
+//
+//	s := kinetic.NewStream[string, int](4)
+//	for _, url := range urls {
+//	    url := url
+//	    s.Go(url, func(u string) (int, error) {
+//	        resp, err := http.Get(u)
+//	        return len(resp.Body), err
+//	    })
+//	}
+//	sizes, err := s.Wait()
+//	// sizes[i] corresponds to urls[i], even though processing was concurrent
 type Stream[T any, R any] struct {
 	concurrency int
 	items       []T
@@ -12,6 +26,10 @@ type Stream[T any, R any] struct {
 }
 
 // NewStream creates a Stream with the given maximum concurrency.
+//
+// Example:
+//
+//	s := kinetic.NewStream[Input, Output](10) // at most 10 concurrent workers
 func NewStream[T any, R any](maxConcurrency int) *Stream[T, R] {
 	return &Stream[T, R]{
 		concurrency: maxConcurrency,
@@ -19,12 +37,30 @@ func NewStream[T any, R any](maxConcurrency int) *Stream[T, R] {
 }
 
 // Go adds an item and its processing function to the stream.
+// Items are processed concurrently, but results are returned in submission order by Wait.
+//
+// Example:
+//
+//	s := kinetic.NewStream[int, int](4)
+//	s.Go(1, func(n int) (int, error) { return n * 2, nil })
+//	s.Go(2, func(n int) (int, error) { return n * 3, nil })
 func (s *Stream[T, R]) Go(item T, fn func(T) (R, error)) {
 	s.items = append(s.items, item)
 	s.fns = append(s.fns, fn)
 }
 
 // Wait blocks until all items are processed and returns results in submission order.
+// Returns the first error encountered, if any.
+//
+// Example:
+//
+//	s := kinetic.NewStream[int, int](4)
+//	for i := 0; i < 5; i++ {
+//	    i := i
+//	    s.Go(i, func(n int) (int, error) { return n * 2, nil })
+//	}
+//	results, err := s.Wait()
+//	// results == []int{0, 2, 4, 6, 8}, err == nil
 func (s *Stream[T, R]) Wait() ([]R, error) {
 	n := len(s.items)
 	if n == 0 {
